@@ -29,6 +29,31 @@ class Transaction{
         this.toAddress = toAddress;
         this.amount = amount;
     }
+
+    calculateHash() {
+        return SHA256(this.fromAddress + this.toAddress + this.amount).toString();
+    }
+
+    signTransaction(signingKey) {
+        if(signingKey.getPublic('hex') !== this.fromAddress){
+            throw new Error('You cannot sign transactions for other wallets');
+        }
+
+        const hashTx = this.calculateHash();
+        const sig = signingKey.sign(hashTx, 'base64');
+        this.signature = sig.toDER('hex');
+    }
+
+    isValid() {
+        if(this.fromAddress === null) return true;
+
+        if(!this.signature || this.signature.length === 0){
+            throw new Error('No signature in this transaction');
+        }
+
+        const publicKey = ec.keyFromPublic(this.fromAddress, 'hex');
+        return publicKey.verify(this.calculateHash(), this.signature);
+    }
 }
 
 class Blockchain{
@@ -52,7 +77,15 @@ class Blockchain{
         return this.chain[this.chain.length - 1];
     }
 
-    createTransaction(transaction) {
+    addTransaction(transaction) {
+        if(!transaction.fromAddress || !transaction.toAddress){
+            throw new Error('Transaction must include from and to address');
+        }
+
+        if(!transaction.isValid()) {
+            throw new Error('Cannot add invalid transaction');
+        }
+
         this.pendingTransactions.push(transaction);
     }
 
@@ -78,6 +111,10 @@ class Blockchain{
             if(currentBlock.hash !== currentBlock.calculateHash()) {
                 return false;
             } else if (currentBlock.previousHash !== previousBlock.hash) {
+                return false;
+            }
+
+            if(!currentBlock.hasValidTransactions()) {
                 return false;
             }
         }
@@ -107,23 +144,43 @@ class Blockchain{
         return balance;
     }
 
+    hasValidTransactions() {
+        for(const tx of this.transactions) {
+            if(!tx.isValid()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
 }
 
+// Import elliptic
+const EC = require('elliptic').ec;
+const ec = new EC('secp256k1');
+
+// Create key object
+const myKey = ec.keyFromPrivate('4415dd09b9852a9ecdd075e9f2ba168ab2361d02ce66c7e029782571f6da5f9a');
+const myWalletAddress = myKey.getPublic('hex');
 
 let gcoin = new Blockchain();
 
 console.log('Creating some transactions...');
-gcoin.createTransaction(new Transaction('address1', 'address2', 100));
-gcoin.createTransaction(new Transaction('address2', 'address1', 50));
+let txn1 = new Transaction(myWalletAddress, 'recipient_1', 10);
+txn1.signTransaction(myKey);
+gcoin.addTransaction(txn1);
+let txn2 = new Transaction(myWalletAddress, 'recipient_2', 90);
+txn2.signTransaction(myKey);
+gcoin.addTransaction(txn2);
 
 console.log('Starting the miner...');
-gcoin.minePendingTransactions('my_address');
+gcoin.minePendingTransactions(myWalletAddress);
 
-console.log(gcoin.getLatestBlock().transactions);
+//console.log(gcoin.getLatestBlock().transactions);
 
-// console.log('Balance of address is', gcoin.getBalanceOfAddress('my_address'));
+console.log('Balance of address is', gcoin.getBalanceOfAddress(myWalletAddress));
 
-// console.log('Starting the miner...');
-// gcoin.minePendingTransactions('my_address');
+console.log('Starting the miner...');
+gcoin.minePendingTransactions(myWalletAddress);
 
-// console.log('Balance of address is', gcoin.getBalanceOfAddress('my_address'));
+console.log('Balance of address is', gcoin.getBalanceOfAddress(myWalletAddress));

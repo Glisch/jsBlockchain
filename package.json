@@ -1,0 +1,21 @@
+{
+  "name": "jsblockcain",
+  "version": "1.0.0",
+  "description": "js blockchain",
+  "main": "main.js",
+  "dependencies": {},
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Glisch/jsBlockchain.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Glisch/jsBlockchain/issues"
+  },
+  "homepage": "https://github.com/Glisch/jsBlockchain#readme"
+}
